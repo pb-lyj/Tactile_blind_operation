@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Virtual Environment
+
+# Log files
+*.log
+logs/
+
+# Data & Results
+organized_data*/
+inference_logs*/
+validation_results*/
+*.npy
+*.npz
+*.pt
+checkpoints/
+
+# Temporary files
+*.tmp
+*.swp
+*.bak
+
+# IDE / Editor
+.vscode/
+.idea/
