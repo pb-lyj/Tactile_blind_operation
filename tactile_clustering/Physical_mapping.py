@@ -80,7 +80,7 @@ def save_physicalXYZ_images(protos, out_dir):
 
 # =================== 原型激活序列保存和可视化 ====================
 # now for validate_prototype.py
-def plot_activation_heatmap(weights_sequence, title, save_path, figsize=(12, 6)):
+def plot_activation_heatmap(weights_sequence, title, save_path, figsize=(24, 12)):
     """绘制原型激活的热力图
     Args:
         weights_sequence: shape (T, num_prototypes) 的权重序列
@@ -97,7 +97,36 @@ def plot_activation_heatmap(weights_sequence, title, save_path, figsize=(12, 6))
     plt.savefig(save_path)
     plt.close()
 
-def save_activation_sequences(activation_records, output_dir):
+def plot_dual_activation_heatmap(weights_sequence_left, weights_sequence_right, title, save_path, figsize=(24, 16)):
+    """绘制左右传感器激活序列的对比图
+    Args:
+        weights_sequence_left: 左传感器激活序列, shape (T, num_prototypes)
+        weights_sequence_right: 右传感器激活序列, shape (T, num_prototypes)
+        title: 图像标题
+        save_path: 保存路径
+        figsize: 图像尺寸
+    """
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=figsize, sharex=True)
+    
+    # 左传感器激活序列
+    im1 = ax1.imshow(weights_sequence_left.T, aspect='auto', cmap='viridis')
+    ax1.set_title('Left Sensor Activations')
+    ax1.set_ylabel('Prototype Index')
+    fig.colorbar(im1, ax=ax1, label='Activation Strength')
+    
+    # 右传感器激活序列
+    im2 = ax2.imshow(weights_sequence_right.T, aspect='auto', cmap='viridis')
+    ax2.set_title('Right Sensor Activations')
+    ax2.set_xlabel('Time Step')
+    ax2.set_ylabel('Prototype Index')
+    fig.colorbar(im2, ax=ax2, label='Activation Strength')
+    
+    plt.suptitle(title)
+    plt.tight_layout()
+    plt.savefig(save_path)
+    plt.close()
+
+def save_plot_activation_sequences(activation_records, output_dir):
     """保存和可视化原型激活序列
     Args:
         activation_records: 字典 {env_name: {episode_name: list of samples}}
@@ -110,20 +139,30 @@ def save_activation_sequences(activation_records, output_dir):
         os.makedirs(env_dir, exist_ok=True)
         
         for episode_name, samples in episodes.items():
-            # 将样本按时间戳排序
+            # 按时间戳和传感器ID排序
             samples.sort(key=lambda x: (x['timestep'], x['sensor_id']))
             
-            # 提取权重序列
-            weights_sequence = np.stack([s['weights'] for s in samples])
+            # 分离左右传感器数据
+            left_samples = [s['weights'] for s in samples if s['sensor_id'] == 0]
+            right_samples = [s['weights'] for s in samples if s['sensor_id'] == 1]
             
-            # 保存数据
-            save_path = os.path.join(env_dir, f"{episode_name}_activations.npy")
-            np.save(save_path, weights_sequence)
-            
-            # 生成可视化
-            title = f'Prototype Activations - {env_name}/{episode_name}'
-            plot_activation_heatmap(
-                weights_sequence,
-                title,
-                save_path.replace('.npy', '.png')
-            )
+            if len(left_samples) == len(right_samples):  # 确保数据对齐
+                weights_sequence_left = np.stack(left_samples)
+                weights_sequence_right = np.stack(right_samples)
+                
+                # 保存原始数据
+                episode_dir = os.path.join(env_dir, episode_name)
+                os.makedirs(episode_dir, exist_ok=True)
+                np.save(os.path.join(episode_dir, "activation_sequence_left.npy"), weights_sequence_left)
+                np.save(os.path.join(episode_dir, "activation_sequence_right.npy"), weights_sequence_right)
+                
+                # 生成对比可视化
+                plot_dual_activation_heatmap(
+                    weights_sequence_left,
+                    weights_sequence_right,
+                    f'Prototype Activations - {env_name}/{episode_name}',
+                    os.path.join(episode_dir, "activation_sequence_comparison.png")
+                )
+            else:
+                print(f"Warning: Unmatched sensor data in {env_name}/{episode_name}")
+

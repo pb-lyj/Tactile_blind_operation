@@ -15,7 +15,7 @@ ACTIVATION_ROOT = "validation_results/activations_1_1"
 ACTION_ROOT = "organized_data_1_1"
 ENV_LIST = ["env_1", "env_2", "env_3", "env_4", "env_5", "env_6", "env_7", "env_8", "env_9", "env_10"]
 BATCH_SIZE = 256
-EPOCHS = 200
+EPOCHS = 100
 LR = 1e-3
 ACTION_LOSS_WEIGHT = 1.0
 Z_LOSS_WEIGHT = 1.0
@@ -101,6 +101,7 @@ def train():
     for epoch in range(EPOCHS):
         model.train()
         total_loss = 0
+        sample_count = 0
         for z_seq_batch, a_seq_batch, a_next_batch, z_next_batch in tqdm(loader, desc=f"Epoch {epoch+1}/{EPOCHS}"):
             for z_seq, a_seq, a_next, z_next in zip(z_seq_batch, a_seq_batch, a_next_batch, z_next_batch):
                 max_len = 10
@@ -129,8 +130,9 @@ def train():
                 loss.backward()
                 optimizer.step()
                 total_loss += loss.item()
+                sample_count += 1
 
-        print(f"Epoch {epoch+1}, Loss: {total_loss/len(dataset):.4f}")
+        print(f"Epoch {epoch+1}, Loss: {total_loss / sample_count:.4f}")
 
     torch.save(model.state_dict(), "action_predictor.pt")
     
@@ -147,7 +149,7 @@ def train():
     print(f"Z_LOSS_WT        = {Z_LOSS_WEIGHT}")
     print("=" * 50 + "\n")
     print("Training complete. Model saved at Program ROOT\n")
-    print(f"Total Loss:{total_loss:.4f}\n")
+    print(f"Loss:Loss: {total_loss / sample_count:.4f}\n")
     print(f"cosine_loss:{cosine_loss:.4f}, magnitude_loss:{magnitude_loss:.4f}, z_loss:{z_loss:.4f}")
 
 

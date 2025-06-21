@@ -31,6 +31,6 @@ def unpack_npz_batch(input_dir, output_root_dir):
 
 if __name__ == "__main__":
     # Example usage
-    input_root = "./inference_logs_2_1/inference_logs/20250523_012807"     # Root directory containing env_* directories
-    output_root = "./organized_data"   # Target root directory
+    input_root = "./data/inference_logs_3_1/inference_logs/20250611_022223"     # Root directory containing env_* directories
+    output_root = "./organized_data_3_1"   # Target root directory
     unpack_npz_batch(input_root, output_root)
