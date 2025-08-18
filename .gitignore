@@ -10,17 +10,17 @@ __pycache__/
 
 # Log files
 *.log
-logs/
 
 # Data & Results
-organized_data*/
-inference_logs*/
-validation_results*/
+backup/
 cluster/
+datasets/
 *.npy
 *.npz
 *.pt
-checkpoints/
+*.zip
+*.txt
+*.png
 
 # Temporary files
 *.tmp

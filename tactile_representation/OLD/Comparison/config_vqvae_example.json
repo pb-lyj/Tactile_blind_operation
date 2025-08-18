@@ -1,0 +1,28 @@
+{
+  "model": {
+    "in_channels": 3,
+    "latent_dim": 64,
+    "num_embeddings": 512,
+    "commitment_cost": 0.25,
+    "hidden_dim": 128
+  },
+  "loss": {
+    "reconstruction_weight": 1.0,
+    "vq_weight": 1.0,
+    "perceptual_weight": 0.0
+  },
+  "data": {
+    "data_root": "./data/data25.7_aligned",
+    "categories": null,
+    "batch_size": 32,
+    "val_split": 0.2,
+    "num_workers": 4
+  },
+  "training": {
+    "epochs": 100,
+    "learning_rate": 0.0001,
+    "weight_decay": 1e-05,
+    "save_freq": 10
+  },
+  "output_dir": "./outputs/vqvae"
+}
