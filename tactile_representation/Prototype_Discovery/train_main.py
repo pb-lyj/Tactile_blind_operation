@@ -25,6 +25,7 @@ def get_base_config():
         'data': {
             'data_root': '/home/lyj/Program_python/Tactile_blind_operation/datasets/data25.7_aligned',
             'categories': [
+                "cir_lar", "cir_med", "cir_sma",
                 "rect_lar", "rect_med", "rect_sma",
                 "tri_lar", "tri_med", "tri_sma"
             ],
@@ -313,8 +314,6 @@ def main():
     print("🎯 原型自编码器训练系统")
     print(f"模型类型: {args.model}")
     print(f"数据根目录: {args.data_root}")
-    if config_updates['model_type'] in ['prototype_cnn', 'prototype_stn']:
-        print(f"原型数量: {args.num_prototypes}")
     print(f"训练轮数: {args.epochs}")
     print(f"批大小: {args.batch_size}")
     print("-" * 60)

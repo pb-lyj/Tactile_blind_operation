@@ -119,8 +119,9 @@ def plot_all_losses_single_plot(loss_history, save_path=None, title="Training Lo
             # 确保数据长度匹配
             if len(epochs) == len(loss_history[key]):
                 color = colors[i % len(colors)]
+                linewidth = 4 if key == 'total_loss' else 2
                 plt.plot(epochs, loss_history[key], 
-                        color=color, linewidth=2, label=key.replace('_', ' ').title())
+                        color=color, linewidth=linewidth, label=key.replace('_', ' ').title())
             else:
                 print(f"⚠️  警告: {key} 数据长度不匹配 (epochs: {len(epochs)}, {key}: {len(loss_history[key])}), 跳过绘图")
     
