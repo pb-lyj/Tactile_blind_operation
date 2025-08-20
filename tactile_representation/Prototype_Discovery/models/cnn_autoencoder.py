@@ -40,7 +40,7 @@ class ResidualBlock(nn.Module):
 
 class TactileCNNEncoder(nn.Module):
     """触觉CNN编码器"""
-    def __init__(self, in_channels=3, latent_dim=256):
+    def __init__(self, in_channels=3, latent_dim=128):
         super().__init__()
         
         self.encoder = nn.Sequential(
@@ -77,7 +77,7 @@ class TactileCNNEncoder(nn.Module):
 
 class TactileCNNDecoder(nn.Module):
     """触觉CNN解码器"""
-    def __init__(self, latent_dim=256, out_channels=3):
+    def __init__(self, latent_dim=128, out_channels=3):
         super().__init__()
         
         # 从潜在向量到特征图
@@ -107,7 +107,7 @@ class TactileCNNDecoder(nn.Module):
 
 class TactileCNNAutoencoder(nn.Module):
     """触觉CNN自编码器"""
-    def __init__(self, in_channels=3, latent_dim=256):
+    def __init__(self, in_channels=3, latent_dim=128):
         super().__init__()
         self.encoder = TactileCNNEncoder(in_channels, latent_dim)
         self.decoder = TactileCNNDecoder(latent_dim, in_channels)
@@ -169,13 +169,13 @@ def create_tactile_cnn_autoencoder(config):
     """创建触觉CNN自编码器"""
     return TactileCNNAutoencoder(
         in_channels=config.get('in_channels', 3),
-        latent_dim=config.get('latent_dim', 256)
+        latent_dim=config.get('latent_dim', 128)
     )
 
 
 if __name__ == '__main__':
     # 测试模型
-    model = TactileCNNAutoencoder(latent_dim=256)
+    model = TactileCNNAutoencoder(latent_dim=128)
     
     # 测试输入
     x = torch.randn(4, 3, 20, 20)

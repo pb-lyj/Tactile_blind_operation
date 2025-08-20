@@ -49,10 +49,11 @@ def train_cnn_autoencoder(config):
         data_root=config['data']['data_root'],
         categories=config['data']['categories'],
         start_frame=config['data']['start_frame'],
-        exclude_test_folders=config['data']['exclude_test_folders'],
         normalize_method=config['data']['normalize_method'],
+        train_ratio=config['data'].get('train_ratio', 0.9),
+        random_seed=config['data'].get('random_seed', 42),
+        is_train=True
     )
-    
     loader = DataLoader(
         dataset, 
         batch_size=config['training']['batch_size'], 
@@ -252,13 +253,12 @@ if __name__ == '__main__':
                 "tri_lar", "tri_med", "tri_sma"
             ],
             'start_frame': 0,
-            'exclude_test_folders': False,
             'num_workers': 8,
             'normalize_method': 'minmax_255'
         },
         'model': {
             'in_channels': 3,
-            'latent_dim': 256
+            'latent_dim': 128
         },
         'loss': {
             'l2_lambda': 0.001

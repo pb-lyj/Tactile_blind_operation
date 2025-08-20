@@ -86,7 +86,7 @@ def get_model_configs():
         'data': base_config['data'].copy(),
         'model': {
             'in_channels': 3,
-            'latent_dim': 256
+            'latent_dim': 128
         },
         'loss': {
             'l2_lambda': 0.001
@@ -109,7 +109,7 @@ def get_model_configs():
         'data': base_config['data'].copy(),
         'model': {
             'in_channels': 3,
-            'latent_dim': 256,
+            'latent_dim': 128,
             'embedding_dim': 256,
             'num_embeddings': 1024,
             'commitment_cost': 0.25,
@@ -248,7 +248,7 @@ def main():
                     help='STN正则化损失权重')
     
     # CNN Autoencoder参数
-    parser.add_argument('--latent_dim', type=int, default=256,
+    parser.add_argument('--latent_dim', type=int, default=128,
                        help='潜在空间维度（用于CNN autoencoder和VQGAN）')
     
     # VQGAN参数
