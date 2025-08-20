@@ -22,7 +22,7 @@ if prototype_discovery_path not in sys.path:
 from utils.logging import Logger
 from utils.visualization import save_physicalXYZ_images, plot_all_losses_single_plot
 from utils.data_utils import save_sample_weights_and_analysis
-from datasets.tactile_dataset import TactileForcesDataset
+from dataset_dataloader.tactile_dataset import TactileForcesDataset
 from models.cnn_autoencoder import TactileCNNAutoencoder, compute_cnn_autoencoder_losses
 
 

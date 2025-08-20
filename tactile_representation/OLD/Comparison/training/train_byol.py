@@ -18,7 +18,7 @@ import json
 # 添加项目根目录到Python路径
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")))
 
-from tactile_representation.Prototype_Discovery.datasets.tactile_dataset import TactileForcesDataset
+from tactile_representation.Prototype_Discovery.dataset_dataloader.tactile_dataset import TactileForcesDataset
 from tactile_representation.models.byol_model import create_tactile_byol, create_byol_loss, create_data_augmentation, TactileBYOLClassifier
 from utils.logging import Logger
 from utils.visualization import plot_loss_curves

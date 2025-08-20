@@ -16,7 +16,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 from utils.logging import Logger
 from utils.visualization import save_physicalXYZ_images, plot_all_losses_single_plot
 from utils.data_utils import save_sample_weights_and_analysis
-from datasets.tactile_dataset import TactileForcesDataset
+from dataset_dataloader.tactile_dataset import TactileForcesDataset
 from models.prototype_stn_ae import ImprovedPrototypeSTNAE, compute_improved_stn_losses
 
 
