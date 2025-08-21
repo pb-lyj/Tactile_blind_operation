@@ -2,7 +2,7 @@ Models:
 1. 低维策略：
     NN: MLP
     Input: resultant_force[6] + resultant_moment[6]
-    Output: delta_action_nextstep[3]
+    Output: delta_action_nextstep[3](dx, dy, dz)
     Remarks: 作为无时序下界；建议 Huber/L2；隐藏层 256×3；输入做 z-score
 2. 低维策略（时序）：
     NN: GRU
@@ -12,7 +12,7 @@ Models:
 
 3. feature-MLP:
     NN: MLP-BC（单帧）
-    Input: tactile_feature[256]
+    Input: tactile_feature[128 + 128](left + right)
     Output:
     Remarks: 隐藏层可用 512×3
 4. feature-GRU:
