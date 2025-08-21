@@ -23,6 +23,106 @@ from policy_learn.models.feature_mlp import FeatureMLP, compute_feature_mlp_loss
 from policy_learn.dataset_dataloader.policy_dataset import create_train_test_datasets
 
 
+def feature_mlp_collate_fn(batch):
+    """
+    Feature-MLP专用collate函数
+    将序列数据展开为单个时间步样本，用于单步预测
+    """
+    all_forces_l = []
+    all_forces_r = []
+    all_deltas = []
+    all_categories = []
+    
+    for item in batch:
+        forces_l = item['forces_l']  # (T, 3, 20, 20)
+        forces_r = item['forces_r']  # (T, 3, 20, 20)
+        actions = item['action']     # (T, 6) - 已经是增量数据
+        category = item['category']
+        
+        # 只使用位置增量信息（前3维）
+        deltas = actions[:, :3]      # (T, 3) - 直接使用增量数据
+        seq_len = deltas.shape[0]
+        
+        # 将每个时间步展开为独立样本
+        for t in range(seq_len):
+            # 当前帧的触觉数据
+            curr_forces_l = forces_l[t]  # (3, 20, 20)
+            curr_forces_r = forces_r[t]  # (3, 20, 20)
+            
+            # 直接使用action文件中的增量数据
+            delta = deltas[t]            # (3,)
+            
+            all_forces_l.append(curr_forces_l)
+            all_forces_r.append(curr_forces_r)
+            all_deltas.append(delta)
+            all_categories.append(category)
+    
+    if len(all_forces_l) == 0:
+        # 返回空batch
+        return {
+            'forces_l': torch.empty(0, 3, 20, 20),
+            'forces_r': torch.empty(0, 3, 20, 20),
+            'delta': torch.empty(0, 3),
+            'category': []
+        }
+    
+    # 转换为tensor
+    return {
+        'forces_l': torch.stack(all_forces_l),  # (N, 3, 20, 20)
+        'forces_r': torch.stack(all_forces_r),  # (N, 3, 20, 20)
+        'delta': torch.stack(all_deltas),       # (N, 3)
+        'category': all_categories
+    }
+
+
+def collate_fn(batch):
+    """
+    自定义collate函数，处理变长序列，保持完整动作序列
+    """
+    # 获取batch中的最大序列长度
+    max_len = max([item['action'].shape[0] for item in batch])
+    
+    batch_data = {
+        'forces_l': [],
+        'forces_r': [],
+        'action': [],
+        'category': [],
+        'timestamps': [],
+        'seq_lengths': []  # 记录原始序列长度
+    }
+    
+    for item in batch:
+        seq_len = item['action'].shape[0]
+        batch_data['seq_lengths'].append(seq_len)
+        
+        # 对forces和action进行padding到最大长度
+        forces_l_padded = torch.zeros(max_len, *item['forces_l'].shape[1:])
+        forces_r_padded = torch.zeros(max_len, *item['forces_r'].shape[1:])
+        action_padded = torch.zeros(max_len, *item['action'].shape[1:])
+        timestamps_padded = torch.zeros(max_len, *item['timestamps'].shape[1:])
+        
+        # 复制原始数据
+        forces_l_padded[:seq_len] = item['forces_l']
+        forces_r_padded[:seq_len] = item['forces_r'] 
+        action_padded[:seq_len] = item['action']
+        timestamps_padded[:seq_len] = item['timestamps']
+        
+        batch_data['forces_l'].append(forces_l_padded)
+        batch_data['forces_r'].append(forces_r_padded)
+        batch_data['action'].append(action_padded)
+        batch_data['timestamps'].append(timestamps_padded)
+        batch_data['category'].append(item['category'])
+    
+    # 转换为tensor
+    batch_data['forces_l'] = torch.stack(batch_data['forces_l'])
+    batch_data['forces_r'] = torch.stack(batch_data['forces_r']) 
+    batch_data['action'] = torch.stack(batch_data['action'])
+    batch_data['timestamps'] = torch.stack(batch_data['timestamps'])
+    batch_data['seq_lengths'] = torch.tensor(batch_data['seq_lengths'])
+    
+    return batch_data
+
+
 def train_feature_mlp(config):
     """
     训练Feature-MLP模型
@@ -40,8 +140,8 @@ def train_feature_mlp(config):
     print(f"Output Directory: {output_dir}")
     print(f"Data Root: {config['data']['data_root']}")
     print(f"Batch Size: {config['data']['batch_size']}")
-    print(f"Epochs: {config['training']['num_epochs']}")
-    print(f"Learning Rate: {config['training']['learning_rate']}")
+    print(f"Epochs: {config['training']['epochs']}")
+    print(f"Learning Rate: {config['training']['lr']}")
     print(f"Feature Dim: {config['model']['feature_dim']}")
     print(f"Hidden Dims: {config['model']['hidden_dims']}")
     print("=" * 60)
@@ -56,23 +156,28 @@ def train_feature_mlp(config):
         start_frame=config['data']['start_frame'],
         use_end_states=config['data']['load_end_effector'],
         use_forces=config['data']['load_forces'],
-        use_resultants=config['data']['load_wrench']
+        use_resultants=config['data']['load_wrench'],
+        normalize_config=config['data'].get('normalize_config', None)  # 支持归一化配置
     )
     
     train_loader = DataLoader(
         train_dataset,
         batch_size=config['data']['batch_size'],
         shuffle=True,
-        num_workers=config['data']['num_workers'],
-        pin_memory=True
+        num_workers=0,  # 设置为0避免多进程问题
+        pin_memory=False,  # 暂时禁用pin_memory
+        persistent_workers=False,
+        collate_fn=feature_mlp_collate_fn  # 使用Feature-MLP专用collate函数
     )
     
     test_loader = DataLoader(
         test_dataset,
         batch_size=config['data']['batch_size'],
         shuffle=False,
-        num_workers=config['data']['num_workers'],
-        pin_memory=True
+        num_workers=0,  # 设置为0避免多进程问题
+        pin_memory=False,  # 暂时禁用pin_memory
+        persistent_workers=False,
+        collate_fn=feature_mlp_collate_fn  # 使用Feature-MLP专用collate函数
     )
     
     print(f"训练样本数: {len(train_dataset)}")
@@ -106,7 +211,7 @@ def train_feature_mlp(config):
     # 训练循环
     best_loss = float('inf')
     patience_counter = 0
-    patience = config['training']['patience']
+    patience = config['training']['early_stopping_patience']
     
     # 记录损失历史
     loss_fields = ['main_loss', 'mae', 'mse', 'rmse']
@@ -136,11 +241,17 @@ def train_feature_mlp(config):
         print(f"  Learning Rate: {current_lr:.6e}")
         print("  Train Metrics:")
         for key, value in train_metrics.items():
-            print(f"    {key}: {value:.6f}")
+            if isinstance(value, list):
+                print(f"    {key}: {value}")  # 直接打印列表
+            else:
+                print(f"    {key}: {value:.6f}")
         if epoch % config['training']['eval_every'] == 0:
             print("  Eval Metrics:")
             for key, value in eval_metrics.items():
-                print(f"    {key}: {value:.6f}")
+                if isinstance(value, list):
+                    print(f"    {key}: {value}")  # 直接打印列表
+                else:
+                    print(f"    {key}: {value:.6f}")
         print("-" * 50)
         
         # 记录损失历史
@@ -215,47 +326,17 @@ def train_epoch(model, train_loader, optimizer, loss_config):
     num_samples = 0
     
     for batch_idx, batch in enumerate(tqdm(train_loader, desc="Training")):
-        # 获取数据
-        forces_l = batch['forces_l'].cuda()  # (B, T, 3, 20, 20)
-        forces_r = batch['forces_r'].cuda()  # (B, T, 3, 20, 20)
-        actions = batch['action'].cuda()     # (B, T, 6)
+        # collate函数已经将序列展开为单个时间步样本
+        forces_l = batch['forces_l'].cuda()  # (N, 3, 20, 20)
+        forces_r = batch['forces_r'].cuda()  # (N, 3, 20, 20)
+        delta_targets = batch['delta'].cuda()  # (N, 3)
         
-        # 只使用位置信息 (前3维)
-        positions = actions[:, :, :3]  # (B, T, 3)
-        
-        # 创建输入-目标对
-        batch_size, seq_len = positions.shape[:2]
-        
-        # 收集所有时间步的数据
-        all_forces_l = []
-        all_forces_r = []
-        all_deltas = []
-        
-        for t in range(seq_len - 1):  # 最后一帧没有下一帧
-            # 当前帧的触觉数据
-            curr_forces_l = forces_l[:, t]  # (B, 3, 20, 20)
-            curr_forces_r = forces_r[:, t]  # (B, 3, 20, 20)
-            
-            # 计算动作增量
-            curr_pos = positions[:, t]      # (B, 3)
-            next_pos = positions[:, t + 1]  # (B, 3)
-            delta = next_pos - curr_pos     # (B, 3)
-            
-            all_forces_l.append(curr_forces_l)
-            all_forces_r.append(curr_forces_r)
-            all_deltas.append(delta)
-        
-        if len(all_forces_l) == 0:
+        if forces_l.size(0) == 0:  # 跳过空batch
             continue
-        
-        # 合并所有时间步
-        forces_l_input = torch.cat(all_forces_l, dim=0)  # (B*(T-1), 3, 20, 20)
-        forces_r_input = torch.cat(all_forces_r, dim=0)  # (B*(T-1), 3, 20, 20)
-        delta_targets = torch.cat(all_deltas, dim=0)     # (B*(T-1), 3)
         
         # 前向传播
         optimizer.zero_grad()
-        predicted_deltas = model(forces_l_input, forces_r_input)
+        predicted_deltas = model(forces_l, forces_r)
         
         # 计算损失
         loss, metrics = compute_feature_mlp_losses(
@@ -268,11 +349,14 @@ def train_epoch(model, train_loader, optimizer, loss_config):
         optimizer.step()
         
         # 累计指标
-        current_batch_size = forces_l_input.size(0)
+        current_batch_size = forces_l.size(0)
         total_loss += loss.item() * current_batch_size
         num_samples += current_batch_size
         
         for key, value in metrics.items():
+            # 跳过列表类型的指标，这些不需要累加
+            if isinstance(value, list):
+                continue
             if key not in total_metrics:
                 total_metrics[key] = 0.0
             total_metrics[key] += value * current_batch_size
@@ -281,6 +365,10 @@ def train_epoch(model, train_loader, optimizer, loss_config):
     if num_samples > 0:
         avg_loss = total_loss / num_samples
         avg_metrics = {key: value / num_samples for key, value in total_metrics.items()}
+        # 添加最后一个batch的观察值
+        if len(metrics) > 0:
+            avg_metrics['last_prediction'] = metrics.get('last_prediction', [])
+            avg_metrics['last_target'] = metrics.get('last_target', [])
     else:
         avg_loss = 0.0
         avg_metrics = {}
@@ -298,41 +386,16 @@ def evaluate(model, test_loader, loss_config):
     
     with torch.no_grad():
         for batch_idx, batch in enumerate(tqdm(test_loader, desc="Evaluating")):
-            # 获取数据
-            forces_l = batch['forces_l'].cuda()
-            forces_r = batch['forces_r'].cuda()
-            actions = batch['action'].cuda()
+            # collate函数已经将序列展开为单个时间步样本
+            forces_l = batch['forces_l'].cuda()  # (N, 3, 20, 20)
+            forces_r = batch['forces_r'].cuda()  # (N, 3, 20, 20)
+            delta_targets = batch['delta'].cuda()  # (N, 3)
             
-            positions = actions[:, :, :3]
-            batch_size, seq_len = positions.shape[:2]
-            
-            # 收集所有时间步的数据
-            all_forces_l = []
-            all_forces_r = []
-            all_deltas = []
-            
-            for t in range(seq_len - 1):
-                curr_forces_l = forces_l[:, t]
-                curr_forces_r = forces_r[:, t]
-                
-                curr_pos = positions[:, t]
-                next_pos = positions[:, t + 1]
-                delta = next_pos - curr_pos
-                
-                all_forces_l.append(curr_forces_l)
-                all_forces_r.append(curr_forces_r)
-                all_deltas.append(delta)
-            
-            if len(all_forces_l) == 0:
+            if forces_l.size(0) == 0:  # 跳过空batch
                 continue
             
-            # 合并数据
-            forces_l_input = torch.cat(all_forces_l, dim=0)
-            forces_r_input = torch.cat(all_forces_r, dim=0)
-            delta_targets = torch.cat(all_deltas, dim=0)
-            
             # 前向传播
-            predicted_deltas = model(forces_l_input, forces_r_input)
+            predicted_deltas = model(forces_l, forces_r)
             
             # 计算损失
             loss, metrics = compute_feature_mlp_losses(
@@ -340,11 +403,14 @@ def evaluate(model, test_loader, loss_config):
             )
             
             # 累计指标
-            current_batch_size = forces_l_input.size(0)
+            current_batch_size = forces_l.size(0)
             total_loss += loss.item() * current_batch_size
             num_samples += current_batch_size
             
             for key, value in metrics.items():
+                # 跳过列表类型的指标，这些不需要累加
+                if isinstance(value, list):
+                    continue
                 if key not in total_metrics:
                     total_metrics[key] = 0.0
                 total_metrics[key] += value * current_batch_size
@@ -353,6 +419,10 @@ def evaluate(model, test_loader, loss_config):
     if num_samples > 0:
         avg_loss = total_loss / num_samples
         avg_metrics = {key: value / num_samples for key, value in total_metrics.items()}
+        # 添加最后一个batch的观察值
+        if len(metrics) > 0:
+            avg_metrics['last_prediction'] = metrics.get('last_prediction', [])
+            avg_metrics['last_target'] = metrics.get('last_target', [])
     else:
         avg_loss = 0.0
         avg_metrics = {}
@@ -368,4 +438,49 @@ def main(config):
 
 
 if __name__ == '__main__':
-    main()
+    # 默认配置
+    config = {
+        'data': {
+            'data_root': '/home/lyj/Program_python/Tactile_blind_operation/datasets/data25.7_aligned',
+            'categories': [
+                "cir_lar", "cir_med", "cir_sma",
+                "rect_lar", "rect_med", "rect_sma", 
+                "tri_lar", "tri_med", "tri_sma"
+            ],
+            'train_split': 0.8,
+            'batch_size': 16,
+            'num_workers': 4,
+            'start_frame': 0,
+            'load_forces': True,
+            'load_wrench': False,
+            'load_end_effector': False
+        },
+        'model': {
+            'feature_dim': 128,  # 匹配预训练权重的特征维度
+            'action_dim': 3,
+            'hidden_dims': [512, 512, 512],
+            'dropout_rate': 0.1,
+            'pretrained_encoder_path': 'tactile_representation/prototype_library/cnnae_crt_128.pt'  # 使用相对路径
+        },
+        'loss': {
+            'mse_weight': 1.0,
+            'l1_weight': 0.1,
+            'l2_weight': 0.001
+        },
+        'training': {
+            'epochs': 50,
+            'lr': 1e-4,
+            'weight_decay': 1e-4,
+            'scheduler_step': 20,
+            'scheduler_gamma': 0.5,
+            'eval_every': 5,
+            'save_every': 10,
+            'early_stopping_patience': 15
+        },
+        'output': {
+            'output_dir': os.path.join("./policy_learn/checkpoints", 
+                                     datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + "_feature_mlp")
+        }
+    }
+    
+    main(config)

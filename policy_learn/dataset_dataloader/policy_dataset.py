@@ -14,7 +14,8 @@ class PolicyDataset(Dataset):
     策略学习数据集，用于加载机器人运动策略相关的数据
     """
     
-    def __init__(self, data_root, categories=None, start_frame=0, train_ratio=0.8, random_seed=42, is_train=True, use_end_states=True, use_forces=True, use_resultants=True):
+    def __init__(self, data_root, categories=None, start_frame=0, train_ratio=0.8, random_seed=42, is_train=True, use_end_states=True, use_forces=True, use_resultants=True, 
+                 normalize_config=None):
         """
         Args:
             data_root: 数据根目录路径 (data25.7_aligned)
@@ -26,6 +27,17 @@ class PolicyDataset(Dataset):
             use_end_states: 是否加载机器人末端状态数据 (_end_states.npy)
             use_forces: 是否加载触觉力数据 (_forces_l.npy/_forces_r.npy)
             use_resultants: 是否加载合力/合力矩数据 (_resultant_force_*.npy/_resultant_moment_*.npy)
+            normalize_config: 归一化配置字典，格式如下：
+                {
+                    'forces': 'zscore',      # forces数据的归一化方法
+                    'actions': 'minmax',     # actions数据的归一化方法
+                    'end_states': None,      # end_states数据的归一化方法（None表示不归一化）
+                    'resultants': 'zscore'   # resultants数据的归一化方法
+                }
+                支持的归一化方法：'zscore', 'minmax', None
+                - 'zscore': Z-score标准化 (mean=0, std=1)
+                - 'minmax': MinMax归一化到[-1, 1]区间，保存min/max值用于重映射
+                - None: 不进行归一化
         """
         self.data_samples = []  # 存储所有样本路径
         self.start_frame = start_frame
@@ -35,6 +47,16 @@ class PolicyDataset(Dataset):
         self.use_end_states = use_end_states
         self.use_forces = use_forces
         self.use_resultants = use_resultants
+        
+        # 设置默认归一化配置
+        if normalize_config is None:
+            normalize_config = {
+                'forces': None,      # 默认不归一化forces
+                'actions': None,     # 默认不归一化actions 
+                'end_states': None,  # 默认不归一化end_states
+                'resultants': None   # 默认不归一化resultants
+            }
+        self.normalize_config = normalize_config
         
         # 设置随机种子以确保可重现的划分
         import random
@@ -120,6 +142,99 @@ class PolicyDataset(Dataset):
     def __len__(self):
         return len(self.data_samples)
 
+    def _normalize_data(self, data, data_type):
+        """
+        数据归一化处理方法
+        Args:
+            data: 原始数据（numpy数组）
+            data_type: 数据类型，用于选择归一化方法 ('forces', 'actions', 'end_states', 'resultants')
+        Returns:
+            标准化后的数据
+        """
+        normalize_method = self.normalize_config.get(data_type, None)
+        
+        # 如果不需要归一化，直接返回原数据
+        if normalize_method is None:
+            return data
+        
+        print(f"对{data_type}数据应用{normalize_method}归一化...")
+        print(f"原始数据范围: [{data.min():.6f}, {data.max():.6f}]")
+        
+        if normalize_method == 'zscore':
+            # Z-score标准化: (x - mean) / std
+            mean = np.mean(data)
+            std = np.std(data)
+            if std > 1e-8:  # 避免除零
+                normalized_data = (data - mean) / std
+            else:
+                normalized_data = data - mean
+                
+            print(f"Z-score归一化: mean={mean:.6f}, std={std:.6f}")
+            
+        elif normalize_method == 'minmax':
+            # MinMax归一化到[-1, 1]区间
+            data_min = np.min(data)
+            data_max = np.max(data)
+            
+            # 保存min/max值用于重映射
+            if not hasattr(self, 'normalization_params'):
+                self.normalization_params = {}
+            self.normalization_params[data_type] = {
+                'min': data_min,
+                'max': data_max,
+                'method': 'minmax'
+            }
+            
+            if data_max - data_min > 1e-8:
+                # 归一化到[-1, 1]: 2 * (x - min) / (max - min) - 1
+                normalized_data = 2.0 * (data - data_min) / (data_max - data_min) - 1.0
+            else:
+                normalized_data = np.zeros_like(data)
+                
+            print(f"MinMax归一化到[-1,1]: min={data_min:.6f}, max={data_max:.6f}")
+            
+        else:
+            raise ValueError(f"不支持的归一化方法: {normalize_method}. 支持的方法: 'zscore', 'minmax'")
+                
+        print(f"归一化后数据范围: [{normalized_data.min():.6f}, {normalized_data.max():.6f}]")
+        
+        # 检查是否有NaN或Inf
+        if np.isnan(normalized_data).any() or np.isinf(normalized_data).any():
+            print("⚠️  警告: 归一化后数据包含NaN或Inf，使用原始数据...")
+            normalized_data = data
+        
+        return normalized_data
+    
+    def denormalize_data(self, normalized_data, data_type):
+        """
+        将归一化后的数据重映射回原始范围
+        Args:
+            normalized_data: 归一化后的数据
+            data_type: 数据类型
+        Returns:
+            重映射后的原始范围数据
+        """
+        if not hasattr(self, 'normalization_params') or data_type not in self.normalization_params:
+            # 如果没有归一化参数，直接返回
+            return normalized_data
+        
+        params = self.normalization_params[data_type]
+        
+        if params['method'] == 'minmax':
+            # 从[-1, 1]重映射回原始范围: (x + 1) / 2 * (max - min) + min
+            data_min = params['min']
+            data_max = params['max']
+            original_data = (normalized_data + 1.0) / 2.0 * (data_max - data_min) + data_min
+            return original_data
+        elif params['method'] == 'zscore':
+            # Z-score反归一化: x * std + mean
+            mean = params['mean']
+            std = params['std']
+            original_data = normalized_data * std + mean
+            return original_data
+        else:
+            return normalized_data
+
     def __getitem__(self, idx):
         """
         获取指定索引的数据样本
@@ -148,6 +263,9 @@ class PolicyDataset(Dataset):
         action_data = action_data[self.start_frame:]
         actions = action_data[:, 1:]  # 去掉时间戳列
         
+        # 应用归一化
+        actions = self._normalize_data(actions, 'actions')
+        
         # 创建返回字典
         result = {
             'action': torch.FloatTensor(actions),
@@ -160,6 +278,9 @@ class PolicyDataset(Dataset):
             end_states_data = end_states_data[self.start_frame:]
             timestamps = end_states_data[:, 0]  # 使用end_states的时间戳
             end_states = end_states_data[:, 1:]  # 去掉时间戳列
+            
+            # 应用归一化
+            end_states = self._normalize_data(end_states, 'end_states')
             
             result['end_states'] = torch.FloatTensor(end_states)
             result['timestamps'] = torch.FloatTensor(timestamps)
@@ -179,6 +300,10 @@ class PolicyDataset(Dataset):
                 forces_l = np.load(os.path.join(dir_path, "_forces_l.npy"))[self.start_frame:self.start_frame+len(actions)]
                 forces_r = np.load(os.path.join(dir_path, "_forces_r.npy"))[self.start_frame:self.start_frame+len(actions)]
             
+            # 应用归一化
+            forces_l = self._normalize_data(forces_l, 'forces')
+            forces_r = self._normalize_data(forces_r, 'forces')
+            
             result['forces_l'] = torch.FloatTensor(forces_l)
             result['forces_r'] = torch.FloatTensor(forces_r)
         
@@ -196,6 +321,12 @@ class PolicyDataset(Dataset):
                 resultant_force_r = np.load(os.path.join(dir_path, "_resultant_force_r.npy"))[self.start_frame:self.start_frame+len(actions)]
                 resultant_moment_l = np.load(os.path.join(dir_path, "_resultant_moment_l.npy"))[self.start_frame:self.start_frame+len(actions)]
                 resultant_moment_r = np.load(os.path.join(dir_path, "_resultant_moment_r.npy"))[self.start_frame:self.start_frame+len(actions)]
+            
+            # 应用归一化
+            resultant_force_l = self._normalize_data(resultant_force_l, 'resultants')
+            resultant_force_r = self._normalize_data(resultant_force_r, 'resultants')
+            resultant_moment_l = self._normalize_data(resultant_moment_l, 'resultants')
+            resultant_moment_r = self._normalize_data(resultant_moment_r, 'resultants')
             
             result['resultant_force_l'] = torch.FloatTensor(resultant_force_l)
             result['resultant_force_r'] = torch.FloatTensor(resultant_force_r)
@@ -484,8 +615,9 @@ class PolicyBatchedDataset(Dataset):
         return result
 
 
-def create_train_test_datasets(data_root, categories=None, train_ratio=0.8, random_seed=42, 
-                              start_frame=0, use_end_states=True, use_forces=True, use_resultants=True):
+def create_train_test_datasets(data_root, categories=None, train_ratio=0.8, random_seed=42,
+                              start_frame=0, use_end_states=True, use_forces=True, use_resultants=True,
+                              normalize_config=None):
     """
     便捷函数：创建训练集和测试集数据集
     
@@ -498,6 +630,7 @@ def create_train_test_datasets(data_root, categories=None, train_ratio=0.8, rand
         use_end_states: 是否加载末端状态
         use_forces: 是否加载力数据
         use_resultants: 是否加载合力/矩数据
+        normalize_config: 归一化配置字典
     
     Returns:
         tuple: (train_dataset, test_dataset)
@@ -511,7 +644,8 @@ def create_train_test_datasets(data_root, categories=None, train_ratio=0.8, rand
         is_train=True,
         use_end_states=use_end_states,
         use_forces=use_forces,
-        use_resultants=use_resultants
+        use_resultants=use_resultants,
+        normalize_config=normalize_config
     )
     
     test_dataset = PolicyDataset(
@@ -523,7 +657,8 @@ def create_train_test_datasets(data_root, categories=None, train_ratio=0.8, rand
         is_train=False,
         use_end_states=use_end_states,
         use_forces=use_forces,
-        use_resultants=use_resultants
+        use_resultants=use_resultants,
+        normalize_config=normalize_config
     )
     
     return train_dataset, test_dataset

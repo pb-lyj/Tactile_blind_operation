@@ -9,29 +9,14 @@ import torch.nn.functional as F
 import os
 import sys
 
-# 添加路径以导入触觉表示模型
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../tactile_representation/Prototype_Discovery/models'))
+# 获取项目根路径
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+sys.path.append(project_root)
 
 try:
-    from cnn_autoencoder import TactileCNNAutoencoder
+    from tactile_representation.Prototype_Discovery.models.cnn_autoencoder import TactileCNNAutoencoder
 except ImportError:
-    print("警告: 无法导入 TactileCNNAutoencoder，将使用占位符")
-    class TactileCNNAutoencoder(nn.Module):
-        def __init__(self, in_channels=3, latent_dim=128):
-            super().__init__()
-            self.encoder = nn.Sequential(
-                nn.Conv2d(in_channels, 64, 3, padding=1),
-                nn.ReLU(),
-                nn.MaxPool2d(2),
-                nn.Conv2d(64, 128, 3, padding=1),
-                nn.ReLU(),
-                nn.AdaptiveAvgPool2d((4, 4)),
-                nn.Flatten(),
-                nn.Linear(128 * 4 * 4, latent_dim)
-            )
-        
-        def encode(self, x):
-            return self.encoder(x)
+    print("警告: 无法导入 TactileCNNAutoencoder")
 
 
 class FeatureMLP(nn.Module):
@@ -47,7 +32,7 @@ class FeatureMLP(nn.Module):
                  action_dim=3,     # 输出动作维度
                  hidden_dims=[512, 512, 512],  # 隐藏层维度
                  dropout_rate=0.1,
-                 pretrained_encoder_path=None):
+                 pretrained_encoder_path=os.path.join(project_root, 'tactile_representation/prototype_library/cnnae_crt_128.pt')):
         """
         Args:
             feature_dim: 单手触觉特征维度
@@ -68,19 +53,31 @@ class FeatureMLP(nn.Module):
         )
         
         # 如果提供了预训练权重路径，加载权重
-        if pretrained_encoder_path and os.path.exists(pretrained_encoder_path):
+        if pretrained_encoder_path and pretrained_encoder_path.lower() != 'none':
+            # 处理相对路径
+            if not os.path.isabs(pretrained_encoder_path):
+                # 如果是相对路径，相对于项目根目录
+                project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+                pretrained_encoder_path = os.path.join(project_root, pretrained_encoder_path)
+            
             print(f"加载预训练触觉编码器: {pretrained_encoder_path}")
-            try:
-                checkpoint = torch.load(pretrained_encoder_path, map_location='cpu')
-                if 'model_state_dict' in checkpoint:
-                    self.tactile_encoder.load_state_dict(checkpoint['model_state_dict'])
-                else:
-                    self.tactile_encoder.load_state_dict(checkpoint)
-                print("预训练权重加载成功")
-            except Exception as e:
-                print(f"权重加载失败: {e}, 使用随机初始化")
+            
+            # 直接使用torch.load加载权重，如果失败就报错
+            checkpoint = torch.load(pretrained_encoder_path, map_location='cpu')
+            
+            # 获取state_dict
+            if 'model_state_dict' in checkpoint:
+                state_dict = checkpoint['model_state_dict']
+            elif isinstance(checkpoint, dict) and any(k.startswith('encoder.') for k in checkpoint.keys()):
+                state_dict = checkpoint
+            else:
+                raise ValueError(f"无法从权重文件中找到有效的state_dict: {pretrained_encoder_path}")
+            
+            # 直接加载权重，strict=True确保完全匹配
+            self.tactile_encoder.load_state_dict(state_dict, strict=True)
+            print(f"成功加载预训练权重")
         else:
-            print(f"警告: 未找到预训练权重文件 {pretrained_encoder_path}, 使用随机初始化")
+            print("未指定预训练权重文件，使用随机初始化")
         
         # 冻结特征提取器参数
         for param in self.tactile_encoder.parameters():
@@ -204,21 +201,22 @@ def compute_feature_mlp_losses(predictions, targets, config=None):
     
     # 计算指标
     with torch.no_grad():
-        mae = F.l1_loss(predictions, targets)
-        mse = F.mse_loss(predictions, targets)
+        # 只保留平均L1和L2误差
+        l1_error = F.l1_loss(predictions, targets)  # 平均L1误差
+        l2_error = F.mse_loss(predictions, targets)  # 平均L2误差(MSE)
         
-        # 计算各个轴的误差
-        errors_per_axis = torch.abs(predictions - targets).mean(dim=0)
+        # 获取最后一组预测值和真实值供观察
+        last_pred = predictions[-1].cpu().numpy() if len(predictions) > 0 else None
+        last_target = targets[-1].cpu().numpy() if len(targets) > 0 else None
     
     metrics = {
         'main_loss': main_loss.item(),
         'total_loss': total_loss.item(),
-        'mae': mae.item(),
-        'mse': mse.item(),
-        'rmse': torch.sqrt(mse).item(),
-        'error_x': errors_per_axis[0].item() if len(errors_per_axis) > 0 else 0,
-        'error_y': errors_per_axis[1].item() if len(errors_per_axis) > 1 else 0,
-        'error_z': errors_per_axis[2].item() if len(errors_per_axis) > 2 else 0,
+        'l1_error': l1_error.item(),
+        'l2_error': l2_error.item(),
+        'rmse': torch.sqrt(l2_error).item(),
+        'last_prediction': last_pred.tolist() if last_pred is not None else [],
+        'last_target': last_target.tolist() if last_target is not None else [],
     }
     
     return total_loss, metrics
@@ -250,7 +248,7 @@ if __name__ == '__main__':
         'action_dim': 3,
         'hidden_dims': [512, 512, 512],
         'dropout_rate': 0.1,
-        'pretrained_encoder_path': '/path/to/pretrained/tactile_encoder.pt'  # 示例路径
+        'pretrained_encoder_path': '/home/lyj/Program_python/Tactile_blind_operation/tactile_representation/prototype_library/cnnae_crt_128.pt'  # 示例路径
     }
     
     model = create_feature_mlp(config)
@@ -278,7 +276,10 @@ if __name__ == '__main__':
     print(f"\n=== 损失测试 ===")
     print(f"总损失: {loss.item():.6f}")
     for key, value in metrics.items():
-        print(f"  {key}: {value:.6f}")
+        if isinstance(value, list):
+            print(f"  {key}: {value}")
+        else:
+            print(f"  {key}: {value:.6f}")
     
     # 预测模式测试
     print(f"\n=== 预测模式测试 ===")
