@@ -1,0 +1,40 @@
+{
+  "os": "Linux-6.14.0-28-generic-x86_64-with-glibc2.39",
+  "python": "CPython 3.11.11",
+  "startedAt": "2025-08-21T08:52:47.768883Z",
+  "program": "/home/lyj/Program_python/Tactile_blind_operation/policy_learn/training/train_feature_mlp_multistep.py",
+  "codePath": "policy_learn/training/train_feature_mlp_multistep.py",
+  "codePathLocal": "train_feature_mlp_multistep.py",
+  "git": {
+    "remote": "git@github.com:pb-lyj/Tactile_blind_operation.git",
+    "commit": "599559b2aa144523af2819b2f83a3d7661a43754"
+  },
+  "email": "lyj6626076@gmail.com",
+  "root": "/home/lyj/Program_python/Tactile_blind_operation/policy_learn/checkpoints/multistep_20250821_165246",
+  "host": "pb",
+  "executable": "/home/lyj/anaconda3/envs/data_ans/bin/python",
+  "cpu_count": 14,
+  "cpu_count_logical": 20,
+  "gpu": "NVIDIA GeForce RTX 4060 Ti",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "187849678848",
+      "used": "120868679680"
+    }
+  },
+  "memory": {
+    "total": "33454817280"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA GeForce RTX 4060 Ti",
+      "memoryTotal": "17175674880",
+      "cudaCores": 4352,
+      "architecture": "Ada",
+      "uuid": "GPU-db685074-6ffe-af78-96e2-ea0b477c354a"
+    }
+  ],
+  "cudaVersion": "12.4",
+  "writerId": "sphmy547wj6n1fthwdypqef508dalhh7"
+}

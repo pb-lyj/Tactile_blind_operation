@@ -26,6 +26,12 @@ except ImportError:
 from policy_learn.models.feature_mlp_new import FeatureMLP, compute_feature_mlp_losses
 from policy_learn.dataset_dataloader.flexible_policy_dataset import create_flexible_datasets
 
+# 设置代理（如果需要代理才能访问外网）
+os.environ["HTTP_PROXY"] = "http://127.0.0.1:7890"
+os.environ["HTTPS_PROXY"] = "http://127.0.0.1:7890"
+
+# 设置超时时间
+os.environ["WANDB_HTTP_TIMEOUT"] = "60"
 
 def train_feature_mlp(config):
     """
@@ -367,8 +373,8 @@ if __name__ == '__main__':
         'model': {
             'feature_dim': 128,
             'action_dim': 3,  # 输出 (dx, dy, dz)
-            'hidden_dims': [512, 512, 512],
-            'dropout_rate': 0.1,
+            'hidden_dims': [256, 128],  # 256 → 128 → 3
+            'dropout_rate': 0.25,       # 提高到0.25
             'pretrained_encoder_path': 'tactile_representation/prototype_library/cnnae_crt_128.pt'  # 相对路径
         },
         'loss': {
@@ -388,7 +394,6 @@ if __name__ == '__main__':
         },
         'wandb': {
             'project': 'tactile-feature-mlp',
-            'entity': 'lyj6626076-npu-org',  # 您的wandb用户名或团队名，如 "my-awesome-team-name"
             'tags': ['feature-mlp', 'tactile', 'behavior-cloning'],
             'notes': 'Feature-MLP training with pretrained tactile encoder and flexible dataset'
         }

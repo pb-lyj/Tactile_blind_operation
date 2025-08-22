@@ -1,0 +1,112 @@
+_wandb:
+    value:
+        cli_version: 0.21.1
+        e:
+            ku7d3zk8fbvc47apeqjb8vwkea3hsqmu:
+                codePath: policy_learn/training/train_feature_mlp_multistep.py
+                codePathLocal: train_feature_mlp_multistep.py
+                cpu_count: 14
+                cpu_count_logical: 20
+                cudaVersion: "12.4"
+                disk:
+                    /:
+                        total: "187849678848"
+                        used: "120868798464"
+                email: lyj6626076@gmail.com
+                executable: /home/lyj/anaconda3/envs/data_ans/bin/python
+                git:
+                    commit: 599559b2aa144523af2819b2f83a3d7661a43754
+                    remote: git@github.com:pb-lyj/Tactile_blind_operation.git
+                gpu: NVIDIA GeForce RTX 4060 Ti
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ada
+                      cudaCores: 4352
+                      memoryTotal: "17175674880"
+                      name: NVIDIA GeForce RTX 4060 Ti
+                      uuid: GPU-db685074-6ffe-af78-96e2-ea0b477c354a
+                host: pb
+                memory:
+                    total: "33454817280"
+                os: Linux-6.14.0-28-generic-x86_64-with-glibc2.39
+                program: /home/lyj/Program_python/Tactile_blind_operation/policy_learn/training/train_feature_mlp_multistep.py
+                python: CPython 3.11.11
+                root: /home/lyj/Program_python/Tactile_blind_operation/policy_learn/checkpoints/multistep_20250821_172538
+                startedAt: "2025-08-21T09:25:39.310361Z"
+                writerId: ku7d3zk8fbvc47apeqjb8vwkea3hsqmu
+        m: []
+        python_version: 3.11.11
+        t:
+            "1":
+                - 1
+            "2":
+                - 1
+            "3":
+                - 2
+                - 13
+                - 15
+                - 16
+            "4": 3.11.11
+            "5": 0.21.1
+            "12": 0.21.1
+            "13": linux-x86_64
+data:
+    value:
+        batch_size: 16
+        categories:
+            - cir_lar
+            - cir_med
+            - cir_sma
+            - rect_lar
+            - rect_med
+            - rect_sma
+            - tri_lar
+            - tri_med
+            - tri_sma
+        data_root: datasets/data25.7_aligned
+        normalize_config:
+            actions: minmax
+            end_states: null
+            forces: zscore
+            resultants: null
+        num_workers: 4
+        start_frame: 0
+        train_split: 0.8
+loss:
+    value:
+        huber_delta: 1
+        loss_type: huber
+        step_weights: null
+model:
+    value:
+        action_dim: 3
+        dropout_rate: 0.25
+        feature_dim: 128
+        hidden_dims:
+            - 256
+            - 128
+        horizon: 5
+        pretrained_encoder_path: tactile_representation/prototype_library/cnnae_crt_128.pt
+output:
+    value:
+        output_dir: policy_learn/checkpoints
+training:
+    value:
+        epochs: 100
+        eval_every: 2
+        lr: 5e-05
+        patience: 20
+        save_every: 10
+        weight_decay: 0.0001
+wandb:
+    value:
+        enabled: true
+        entity: null
+        mode: online
+        notes: Multi-step Feature-MLP training with pretrained tactile encoder and flexible dataset
+        project: tactile-feature-mlp
+        tags:
+            - feature-mlp
+            - multistep
+            - tactile
+            - behavior-cloning

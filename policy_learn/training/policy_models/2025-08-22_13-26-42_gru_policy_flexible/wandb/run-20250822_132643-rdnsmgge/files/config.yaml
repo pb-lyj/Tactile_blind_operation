@@ -1,0 +1,112 @@
+_wandb:
+    value:
+        cli_version: 0.21.1
+        e:
+            m84ef1cmurxu40uf8k5kkrzmoqzlgyc1:
+                codePath: policy_learn/training/train_gru.py
+                codePathLocal: train_gru.py
+                cpu_count: 14
+                cpu_count_logical: 20
+                cudaVersion: "12.4"
+                disk:
+                    /:
+                        total: "187849678848"
+                        used: "120649940992"
+                email: lyj6626076@gmail.com
+                executable: /home/lyj/anaconda3/envs/data_ans/bin/python
+                git:
+                    commit: 599559b2aa144523af2819b2f83a3d7661a43754
+                    remote: git@github.com:pb-lyj/Tactile_blind_operation.git
+                gpu: NVIDIA GeForce RTX 4060 Ti
+                gpu_count: 1
+                gpu_nvidia:
+                    - architecture: Ada
+                      cudaCores: 4352
+                      memoryTotal: "17175674880"
+                      name: NVIDIA GeForce RTX 4060 Ti
+                      uuid: GPU-db685074-6ffe-af78-96e2-ea0b477c354a
+                host: pb
+                memory:
+                    total: "33454817280"
+                os: Linux-6.14.0-28-generic-x86_64-with-glibc2.39
+                program: /home/lyj/Program_python/Tactile_blind_operation/policy_learn/training/train_gru.py
+                python: CPython 3.11.11
+                root: ./policy_models/2025-08-22_13-26-42_gru_policy_flexible
+                startedAt: "2025-08-22T05:26:43.515634Z"
+                writerId: m84ef1cmurxu40uf8k5kkrzmoqzlgyc1
+        m: []
+        python_version: 3.11.11
+        t:
+            "1":
+                - 1
+            "2":
+                - 1
+            "3":
+                - 13
+                - 15
+                - 16
+            "4": 3.11.11
+            "5": 0.21.1
+            "12": 0.21.1
+            "13": linux-x86_64
+data:
+    value:
+        categories:
+            - cir_lar
+            - cir_med
+            - cir_sma
+            - rect_lar
+            - rect_med
+            - rect_sma
+            - tri_lar
+            - tri_med
+            - tri_sma
+        data_root: /home/leonhard/tactile_operation_blind_stack/Tactile_blind_operation/datasets/data25.7_aligned
+        normalize_config:
+            actions: minmax
+            end_states: null
+            resultants: zscore
+        num_workers: 8
+        random_seed: 42
+        sequence_length: 10
+        start_frame: 0
+        train_ratio: 0.8
+        use_end_states: true
+        use_forces: false
+        use_resultants: true
+loss:
+    value:
+        delta_u_weight: 0.1
+        huber_weight: 0
+        jerk_weight: 0.05
+        l2_weight: 1
+model:
+    value:
+        dropout: 0.1
+        hidden_dim: 256
+        input_dim: 12
+        num_layers: 2
+        output_dim: 3
+        use_normalization: true
+output:
+    value:
+        output_dir: ./policy_models/2025-08-22_13-26-42_gru_policy_flexible
+training:
+    value:
+        batch_size: 16
+        epochs: 20
+        lr: 0.001
+        patience: 20
+        weight_decay: 0.0001
+wandb:
+    value:
+        enabled: true
+        entity: null
+        mode: online
+        notes: GRU policy training with flexible dataset and L1 metrics
+        project: tactile-gru-policy
+        tags:
+            - gru
+            - policy
+            - tactile
+            - flexible-dataset

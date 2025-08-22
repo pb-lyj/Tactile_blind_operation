@@ -1,0 +1,1 @@
+{"train/rmse":0.427939130597582,"val/rmse":0.6151182967252525,"val/l1_error":0.496832333238585,"val/loss":0.18625175829330662,"_wandb":{"runtime":4040},"epoch":79,"_runtime":4040,"learning_rate":5e-05,"_step":96,"final/best_loss":0.16659290189735504,"train/l1_error":0.319464263834911,"_timestamp":1.7557680792116342e+09,"train/loss":0.09195385744616676}

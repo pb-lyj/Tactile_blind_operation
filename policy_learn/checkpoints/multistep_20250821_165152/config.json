@@ -1,0 +1,65 @@
+{
+  "data": {
+    "data_root": "datasets/data25.7_aligned",
+    "categories": [
+      "cir_lar",
+      "cir_med",
+      "cir_sma",
+      "rect_lar",
+      "rect_med",
+      "rect_sma",
+      "tri_lar",
+      "tri_med",
+      "tri_sma"
+    ],
+    "train_split": 0.8,
+    "batch_size": 16,
+    "num_workers": 4,
+    "start_frame": 0,
+    "normalize_config": {
+      "forces": "zscore",
+      "actions": "minmax",
+      "end_states": null,
+      "resultants": null
+    }
+  },
+  "model": {
+    "feature_dim": 128,
+    "horizon": 5,
+    "action_dim": 3,
+    "hidden_dims": [
+      256,
+      128
+    ],
+    "dropout_rate": 0.25,
+    "pretrained_encoder_path": "tactile_representation/prototype_library/cnnae_crt_128.pt"
+  },
+  "loss": {
+    "loss_type": "huber",
+    "huber_delta": 1.0,
+    "step_weights": null
+  },
+  "training": {
+    "epochs": 100,
+    "lr": 5e-05,
+    "weight_decay": 0.0001,
+    "eval_every": 2,
+    "save_every": 10,
+    "patience": 20
+  },
+  "output": {
+    "output_dir": "policy_learn/checkpoints"
+  },
+  "wandb": {
+    "enabled": true,
+    "mode": "online",
+    "project": "tactile-multistep-mlp",
+    "entity": null,
+    "tags": [
+      "multistep",
+      "feature-mlp",
+      "horizon-5"
+    ],
+    "notes": "Multi-step Feature-MLP training with 5-step horizon"
+  }
+}

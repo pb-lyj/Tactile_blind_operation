@@ -26,15 +26,15 @@ class FeatureMLP(nn.Module):
     
     架构：
     1. 预训练CNN编码器提取左右手触觉特征 (2 × 128维)
-    2. 特征连接后输入MLP (256 → 512 → 512 → 512 → 3)
+    2. 特征连接后输入MLP (256 → 256 → 128 → 3)
     3. 输出3维位置增量 (dx, dy, dz)
     """
     
     def __init__(self, 
                  feature_dim=128,           # 单手特征维度
                  action_dim=3,              # 输出动作维度 (dx, dy, dz)
-                 hidden_dims=[512, 512, 512],  # 隐藏层维度
-                 dropout_rate=0.1,
+                 hidden_dims=[256, 128],    # 隐藏层维度：256 → 128
+                 dropout_rate=0.25,         # 提高Dropout到0.25
                  pretrained_encoder_path=None):
         """
         Args:
